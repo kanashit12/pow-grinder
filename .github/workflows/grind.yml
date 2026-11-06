@@ -16,6 +16,10 @@ on:
         description: "max grind seconds"
         required: false
         default: "240"
+      base:
+        description: "nonce base offset"
+        required: false
+        default: "0"
 permissions:
   contents: write
 jobs:
@@ -28,7 +32,7 @@ jobs:
           gcc -O3 -march=native -o grindc grind.c -lcrypto -lpthread 2>/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq libssl-dev && gcc -O3 -march=native -o grindc grind.c -lcrypto -lpthread)
       - name: grind
         run: |
-          timeout ${{ inputs.seconds }} ./grindc "${{ inputs.wallet }}" "${{ inputs.puzzle }}" "${{ inputs.want }}" | tee found.txt || true
+          timeout ${{ inputs.seconds }} ./grindc "${{ inputs.wallet }}" "${{ inputs.puzzle }}" "${{ inputs.want }}" "${{ inputs.base }}" | tee found.txt || true
           cat found.txt
       - name: publish result
         run: |
