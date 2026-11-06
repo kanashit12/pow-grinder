@@ -5,10 +5,10 @@
 #include <pthread.h>
 #include <openssl/sha.h>
 static char prefix[256]; static int plen;
-static volatile int found_count = 0; static int want = 2;
+static volatile int found_count = 0; static int want = 2; static uint64_t base = 0;
 static pthread_mutex_t lk = PTHREAD_MUTEX_INITIALIZER;
 static void* worker(void* arg){
-    long tid = (long)arg; uint64_t n = (uint64_t)tid; const uint64_t step = 4;
+    long tid = (long)arg; uint64_t n = base + (uint64_t)tid; const uint64_t step = 4;
     char buf[320]; unsigned char d[32];
     uint64_t local = 0;
     while(found_count < want){
@@ -32,7 +32,7 @@ static void* worker(void* arg){
 }
 int main(int argc, char** argv){
     if(argc < 3){ fprintf(stderr, "usage: grindc <wallet_lower> <puzzleId> [want]\n"); return 1; }
-    if(argc > 3) want = atoi(argv[3]);
+    if(argc > 3) want = atoi(argv[3]); if(argc > 4) base = strtoull(argv[4], NULL, 10);
     plen = snprintf(prefix, sizeof(prefix), "tampesta-work|%s|%s|", argv[1], argv[2]);
     pthread_t th[4];
     for(long i=0;i<4;i++) pthread_create(&th[i], NULL, worker, (void*)i);
