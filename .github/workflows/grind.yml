@@ -1,0 +1,42 @@
+name: grind
+on:
+  workflow_dispatch:
+    inputs:
+      wallet:
+        description: "wallet lowercase"
+        required: true
+      puzzle:
+        description: "puzzle id"
+        required: true
+      want:
+        description: "hits wanted"
+        required: false
+        default: "3"
+      seconds:
+        description: "max grind seconds"
+        required: false
+        default: "240"
+permissions:
+  contents: write
+jobs:
+  grind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: build
+        run: |
+          gcc -O3 -march=native -o grindc grind.c -lcrypto -lpthread 2>/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq libssl-dev && gcc -O3 -march=native -o grindc grind.c -lcrypto -lpthread)
+      - name: grind
+        run: |
+          timeout ${{ inputs.seconds }} ./grindc "${{ inputs.wallet }}" "${{ inputs.puzzle }}" "${{ inputs.want }}" | tee found.txt || true
+          cat found.txt
+      - name: publish result
+        run: |
+          mkdir -p results
+          cp found.txt "results/${{ inputs.puzzle }}.txt"
+          echo "RUN=${{ github.run_id }} AT=$(date -u +%FT%TZ)" >> "results/${{ inputs.puzzle }}.txt"
+          git config user.name "pow-grinder"
+          git config user.email "pow@grinder.local"
+          git add results/
+          git commit -m "pow ${{ inputs.puzzle }}" || echo "nothing to commit"
+          git push
