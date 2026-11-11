@@ -1,0 +1,41 @@
+name: amnc-mine
+on:
+  push:
+    branches: [main]
+    paths: ["amnc/jobs/*.json"]
+permissions:
+  contents: write
+jobs:
+  mine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 118
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Build miner
+        run: gcc -O3 -march=native -pthread -o miner amnc/miner.c
+      - name: Grind job files from this push
+        run: |
+          set -e
+          mkdir -p amnc/results
+          for jf in $(git diff-tree --root --no-commit-id --name-only -r HEAD | grep '^amnc/jobs/.*\.json$' || true); do
+            echo "== job: $jf"
+            seed=$(jq -r .seed "$jf"); wallet=$(jq -r .wallet "$jf"); aid=$(jq -r .agent_id "$jf")
+            day=$(jq -r .day "$jf"); target=$(jq -r .target "$jf"); want=$(jq -r .want "$jf")
+            out="amnc/results/${wallet}-day${day}.txt"
+            touch "$out"
+            timeout 6400 ./miner "$seed" "$wallet" "$aid" 2 "$day" "$target" "$want" 4 "$out" || true
+            echo "--- $out:"; cat "$out"
+          done
+      - name: Commit results
+        if: always()
+        run: |
+          git config user.name "amnc-miner"
+          git config user.email "amnc-miner@users.noreply.github.com"
+          git add amnc/results/
+          if git diff --cached --quiet; then echo "no results to commit"; exit 0; fi
+          git commit -m "amnc results $(date -u +%FT%TZ)"
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin main && git push origin main && break || sleep 5
+          done
