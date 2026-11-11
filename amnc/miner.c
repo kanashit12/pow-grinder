@@ -116,7 +116,13 @@ static void dec_to_bytes32(const char* s, uint8_t out[32]){
 static int hexval2(char c){ if(c>='0'&&c<='9') return c-'0'; if(c>='a'&&c<='f') return c-'a'+10; if(c>='A'&&c<='F') return c-'A'+10; return 0; }
 static void parse_hex(const char* s, uint8_t* out, int nbytes){
   if(s[0]=='0'&&(s[1]=='x'||s[1]=='X')) s+=2;
-  for(int i=0;i<nbytes;i++) out[i]=(uint8_t)(hexval2(s[2*i])*16+hexval2(s[2*i+1]));
+  int len = (int)strlen(s); int start = len - 2*nbytes; // right-align: short strings get leading zero nibbles
+  for(int i=0;i<nbytes;i++){
+    int hi_idx = start + 2*i, lo_idx = hi_idx + 1;
+    int hi = hi_idx >= 0 && hi_idx < len ? hexval2(s[hi_idx]) : 0;
+    int lo = lo_idx >= 0 && lo_idx < len ? hexval2(s[lo_idx]) : 0;
+    out[i]=(uint8_t)(hi*16+lo);
+  }
 }
 int main(int argc, char** argv){
   if(argc>=2 && strcmp(argv[1],"--digest")==0){
